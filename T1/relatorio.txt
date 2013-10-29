@@ -1,0 +1,28 @@
+﻿/* GUILHERME BERGER 1210518 */
+
+SOBRE OS TESTES
+
+Já que a implementação de uma biblioteca de testes seria trabalhoso demais, resolvi escrever testes que precisam ser checados no olho. 
+
+O módulo de testes consiste em inúmeras funções text_xxx. Cada uma testa a função big_xxx, recebendo um ou dois parâmetros, int ou unsigned int, dependendo da função a ser testada. 
+Cada função de teste usa big_val ou big_uval para converter os parâmetros para BigInt, aplica a função big_xxx, e mostra o resultado por meio de uma função auxiliar (big_dump).
+O cálculo correspondente também é feito usando-se um inteiro de 8 bytes, suficiente para armazenar o resultado de uma multiplicação entre dois ints.
+O resultado esperado e o obtido são mostrados lado a lado.
+
+Assim, várias chamadas são feitas a essas funções testadoras. O resultado, como dito, é analisado a olho, quando o programa de teste é rodado. Aqui uma screenshot da área de trabalho: http://i.imgur.com/KfrGweM.png
+
+Exemplo de função testadora:
+
+	void test_shr(int a, int n){
+		BigInt res, ba;
+
+		printf("0x%08x -> ", a>>n);
+
+		big_val(ba, a);
+		big_shr(res, ba, n);
+		big_dump(res, true);
+	}
+
+Evidentemente, não podem ser testados facilmente casos com números grandes (maiores que 8 bytes). Porém, sendo comprovado que o BigInt consegue operar com números até esse tamanho, não há razão de não conseguir operar números até seu limite (16 bytes). O único caso testado dessa magnitude são os de overflow e underflow.
+
+Até onde consegui detectar, o funcionamento está completo conforme as especificações.
