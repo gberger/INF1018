@@ -1,2 +1,0 @@
-/* Guilherme Berger 1210518 3WA */
-/* Leonardo Giroto  1210817 3WA */
