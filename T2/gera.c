@@ -7,12 +7,10 @@
 #define LINE_SIZE 32
 #define LINE_MAX 100
 
-static char * toAssembly(char *codSB, int line);
-static char * strip(char *str);
+static char * parseLine(char *codSB, int line);
 
-void gera(FILE *f){
+void gera(FILE *f, void ** code, funcp * entry){
   char *bufferSB = (char*)malloc(sizeof(char) * LINE_SIZE);
-  //char codigoAssembly[LINE_SIZE];
   int numLinhas = 0;
 
   if(!bufferSB) {
@@ -24,39 +22,12 @@ void gera(FILE *f){
     
     bufferSB = strip(bufferSB);
     printf("%d: %s\n", numLinhas, bufferSB);
-    printf("%s\n", toAssembly(bufferSB, numLinhas));
-    /*codigoAssembly = toAssembly(bufferSB);
-    codigoMaquina = toMachine(codigoAssembly);*/
+    printf("%s\n", parseLine(bufferSB, numLinhas));
     
   }
 }
 
-static char * strip(char *str){
-  char *ref = (char*)malloc(sizeof(char) * LINE_SIZE);
-  int i, len = strlen(str);
-  int j = 0;
-
-  if(!ref) {
-    exit(EXIT_FAILURE);
-  }
-
-  for(i=0; i<LINE_SIZE; i++){
-    ref[i] = 0;
-  }
-
-  for(i=0; i<len; i++){
-    //se não estiver no último caractere da linha
-    //OU se não [ o atual e o próximo forem um espaço ]
-    if(i == len-1 || !(str[i] == ' ' && str[i+1] == ' ')){
-      ref[j] = str[i];
-      j++;
-    }
-  }
-
-  return ref;
-}
-
-static char * toAssembly(char *codSB, int line){
+static char * parseLine(char *codSB, int line){
   char * codigoAssembly = (char*)malloc(sizeof(char)*LINE_SIZE);
 
   strcpy(codigoAssembly, "oi");

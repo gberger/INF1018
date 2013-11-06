@@ -16,7 +16,7 @@ int main(int argc, char **argv){
     exit(EXIT_FAILURE);
   }
 
-  gera(f);
+  //gera(f);
 
   fclose(f);
   return 0;
