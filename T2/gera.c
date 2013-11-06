@@ -20,7 +20,6 @@ void gera(FILE *f, void ** code, funcp * entry){
   while( fscanf(f, " %[^\n]", bufferSB) == 1 && numLinhas<LINE_MAX){
     numLinhas++;
     
-    bufferSB = strip(bufferSB);
     printf("%d: %s\n", numLinhas, bufferSB);
     printf("%s\n", parseLine(bufferSB, numLinhas));
     
