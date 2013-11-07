@@ -26,13 +26,16 @@ static char * getRet(int *size);
 void gera(FILE *f, void ** code, funcp * entry){
   char bufferSB[LINE_SIZE] = {0};
   char * bufferM;
-  int numLinhas = 0;
-  int bufferMSize;  
+  int readLines = 0;
+  int bufferMSize;
 
-  while( fscanf(f, " %[^\n]", bufferSB) == 1 && numLinhas<LINE_MAX){
-    numLinhas++;
+  // todo refactor malloc size
+  *code = malloc(sizeof(char) * LINE_MAX  * 10);
+
+  while( fscanf(f, " %[^\n]", bufferSB) == 1 && readLines<LINE_MAX){
+    readLines++;
     
-    debug_printf("%d\n", numLinhas);
+    debug_printf("%d\n", readLines);
 
     char bufferM = parseLine(bufferSB, &bufferMSize);
     //
