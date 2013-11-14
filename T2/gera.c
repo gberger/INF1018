@@ -10,9 +10,11 @@
 #define LINE_MAX 100
 
 //#ifdef DEBUG
-  #define debug_printf(x, y) (printf(x, y))
+  #define debug_printf0(x) (printf(x))
+  #define debug_printf1(x, y) (printf(x, y))
 //#else
-  //#define debug_printf(x, y) 
+  //#define debug_printf0(x)
+  //#define debug_printf1(x, y) 
 //#endif
 
 
@@ -64,19 +66,28 @@ typedef int funcid_t;
 /******************************
  * Local functions definitions.
  ******************************/
-static char * parseLine(char *bufferSB, int *size);
-static char * getFunc(int *size);
-static char * getEnd(int *size);
-static char * getOp(int *size, varc_t v1, varc_t v2, op_t op, varc_t v3);
-static char * getCall(int *size, varc_t v1, funcid_t n, varc_t v2);
-static char * getRet(int *size, varc_t cond, varc_t retVal);
+static void parseLine(char *bufferSB, void *code, int *nextByte);
+static void addFunc(void *code, int *nextByte);
+static void addEnd(void *code, int *nextByte);
+static void addOp(void *code, int *nextByte, varc_t var1, varc_t var2, op_t op, varc_t var3);
+static void addCall(void *code, int *nextByte, varc_t var1, funcid_t n, varc_t var2);
+static void addRet(void *code, int *nextByte, varc_t cond, varc_t retVal);
+static void addByte(void *code, int *nextByte, unsigned char mach);
 static varc_t varc_parse(char * str, int *length);
-static int varc_length(varc_t v);
+
+void debug_dump_code(void ** code, int nextByte){
+  int i;
+  debug_printf0("\ncode: ");
+  for(i=0; i<nextByte; i++){
+    debug_printf1("%x ", ((*(unsigned char**)code))[i]);
+  }
+  debug_printf0("\n");
+}
 
 void varc_debug_print(varc_t v){
   char c = (v.type == NUMBER ? '$' : v.type == LOCAL  ? 'v' : 'p');
-  debug_printf("%c", c);
-  debug_printf("%d", v.i);
+  debug_printf1("%c", c);
+  debug_printf1("%d", v.i);
 }
 
 /*********************
@@ -84,9 +95,7 @@ void varc_debug_print(varc_t v){
  *********************/
 void gera(FILE *f, void ** code, funcp * entry){
   char bufferSB[LINE_SIZE] = {0};
-  char * bufferM;
-  int readLines = 0;
-  int bufferMSize;
+  int readLines = 0, nextByte = 0;
 
   // todo refactor malloc size
   *code = malloc(sizeof(char) * LINE_MAX  * 10);
@@ -94,16 +103,14 @@ void gera(FILE *f, void ** code, funcp * entry){
   while( fscanf(f, " %[^\n]", bufferSB) == 1 && readLines<LINE_MAX){
     readLines++;
     
-    debug_printf("< %d: ", readLines);
-    debug_printf("%s\n", bufferSB);
+    debug_printf1("%03d: ", readLines);
+    debug_printf1("%s\n", bufferSB);
 
-    char bufferM = parseLine(bufferSB, &bufferMSize);
-    
-    //copy bufferM to code
-
-
-    free(bufferM);
+    parseLine(bufferSB, *code, &nextByte);
   }
+
+  debug_dump_code(code, nextByte);
+
 }
 
 void libera(void *code){
@@ -115,15 +122,17 @@ void libera(void *code){
  **********************************/
 
 /* 
+ * Description:
+ *   adds machine code at the end of code and increments nextByte accordingly
+ *   the machine code corresponds to whatever is in bufferSB
  * Parameters:
  *   bufferSB: a line of SB code
- *   size: a pointer to where we'll store the size, in bytes, of the resulting machine code
- * Returns:
- *   an array of machine code, corresponding to the given SB code
+ *   code: the generated machine code
+ *   nextByte: the size of the machine code until now
  */
-static char * parseLine(char *bufferSB, int *size){
+static void parseLine(char *bufferSB, void *code, int *nextByte){
   //we can have up to three varc in a command
-  varc_t v1, v2, v3;
+  varc_t var1, var2, var3;
   op_t op;
   funcid_t n;
   int offset;
@@ -136,9 +145,10 @@ static char * parseLine(char *bufferSB, int *size){
       exit(EXIT_FAILURE);
     }
 
-    debug_printf("   > function\n", 0);
+    debug_printf0("   > function\n");
     
-    return getFunc(size);
+    addFunc(code, nextByte);
+    return;
   }
   
   if (bufferSB[0] == 'e'){
@@ -148,64 +158,66 @@ static char * parseLine(char *bufferSB, int *size){
       exit(EXIT_FAILURE);
     }
     
-    debug_printf("   > end\n", 0);
+    debug_printf0("   > end\n");
 
-    return getEnd(size);
+    addEnd(code, nextByte);
+    return;
   }
   
   if (bufferSB[0] == 'v' || bufferSB[0] == 'p'){
     //attribution
 
-    v1 = varc_parse(bufferSB, &offset);
+    var1 = varc_parse(bufferSB, &offset);
 
-    debug_printf("   > ", 0);
-    varc_debug_print(v1);
-    debug_printf(" = ", 0);
+    debug_printf0("   > ");
+    varc_debug_print(var1);
+    debug_printf0(" = ");
 
-    if(bufferSB[6] == 'c'){
+    if(bufferSB[5] == 'c'){
       //var = call num varc
       n = (funcid_t)atoi(bufferSB + 10);
-      v2 = varc_parse(bufferSB + 12, &offset);
+      var2 = varc_parse(bufferSB + 12, &offset);
 
-      debug_printf("call ", 0);
-      debug_printf(" %d ", (int)n);
-      debug_printf("\n", 0);
+      debug_printf1("call %d ", (int)n);
+      varc_debug_print(var2);
+      debug_printf0("\n");
 
-      return getCall(size, v1, n, v2);
+      addCall(code, nextByte, var1, n, var2);
+      return;
     } else {
       //var = varc op varc
 
-      v2 = varc_parse(bufferSB + 5, &offset);
+      var2 = varc_parse(bufferSB + 5, &offset);
       op = bufferSB[5 + offset + 1];
-      v3 = varc_parse(bufferSB + 5 + offset + 3, &offset);
+      var3 = varc_parse(bufferSB + 5 + offset + 3, &offset);
 
-      varc_debug_print(v2);
-      debug_printf(" %c ", op);
-      varc_debug_print(v3);
-      debug_printf(" \n", 0);
-      return getOp(size, v1, v2, op, v3);
+      varc_debug_print(var2);
+      debug_printf1(" %c ", op);
+      varc_debug_print(var3);
+      debug_printf0(" \n");
+      addOp(code, nextByte, var1, var2, op, var3);
+      return;
     }
   }
 
   if (bufferSB[0] == 'r'){
-    //ret
     //ret? varc varc
-    debug_printf("   > ret? ", 0);
+    debug_printf0("   > ret? ");
 
-    v1 = varc_parse(bufferSB + 5, &offset);
-    v2 = varc_parse(bufferSB + 5 + offset + 1, &offset);
+    var1 = varc_parse(bufferSB + 5, &offset);
+    var2 = varc_parse(bufferSB + 5 + offset + 1, &offset);
 
-    varc_debug_print(v1);
-    debug_printf(" ", 0);
-    varc_debug_print(v2);
-    debug_printf("\n", 0);
+    varc_debug_print(var1);
+    debug_printf0(" ");
+    varc_debug_print(var2);
+    debug_printf0("\n");
 
-    return getRet(size, v1, v2);
+    addRet(code, nextByte, var1, var2);
+    return;
   }
 
   printf("Comando invalido: %s\n", bufferSB);
   exit(EXIT_FAILURE);
-
 }
 
 /* 
@@ -237,52 +249,70 @@ static varc_t varc_parse(char * str, int *length){
 }
 
 /* 
+ * Description:
+ *   adds machine code at the end of code and increments nextByte accordingly
+ *   the machine code corresponds to a 'function' command
  * Parameters:
- *   size: a pointer to where we'll store the size, in bytes, of the resulting machine code
- * Returns:
- *   an array of machine code, corresponding to the beginning of a function
+ *   code: the generated machine code
+ *   nextByte: the size of the machine code until now
  */
-static char * getFunc(int *size){
-  return NULL;  
+static void addFunc(void *code, int *nextByte){
+
 }
 
 /* 
+ * Description:
+ *   adds machine code at the end of code and increments nextByte accordingly
+ *   the machine code corresponds to an 'end' command
  * Parameters:
- *   size: a pointer to where we'll store the size, in bytes, of the resulting machine code
- * Returns:
- *   an array of machine code, corresponding to the end of a function
+ *   code: the generated machine code
+ *   nextByte: the size of the machine code until now
  */
-static char * getEnd(int *size){
-  return NULL;
+static void addEnd(void *code, int *nextByte){
+  addByte(code, nextByte, 0xc3);
 }
 
 /* 
+ * Description:
+ *   adds machine code at the end of code and increments nextByte accordingly
+ *   the machine code corresponds to an 'operation' command (form: 'var = varc op varc')
  * Parameters:
- *   size: a pointer to where we'll store the size, in bytes, of the resulting machine code
- * Returns:
- *   an array of machine code, corresponding to the atribution of an operation
+ *   code: the generated machine code
+ *   nextByte: the size of the machine code until now
  */
-static char * getOp(int *size, varc_t v1, varc_t v2, op_t op, varc_t v3){
-  return NULL;
+static void addOp(void *code, int *nextByte, varc_t var1, varc_t var2, op_t op, varc_t var3){
+
 }
 
 /* 
+ * Description:
+ *   adds machine code at the end of code and increments nextByte accordingly
+ *   the machine code corresponds to a 'call' command (form: 'var = call num varc')
  * Parameters:
- *   size: a pointer to where we'll store the size, in bytes, of the resulting machine code
- * Returns:
- *   an array of machine code, corresponding to the attribution of a function call
+ *   code: the generated machine code
+ *   nextByte: the size of the machine code until now
  */
-static char * getCall(int *size, varc_t v1, funcid_t n, varc_t v2){
-  return NULL;
+static void addCall(void *code, int *nextByte, varc_t var1, funcid_t n, varc_t var2){
+
 }
 
 /* 
+ * Description:
+ *   adds machine code at the end of code and increments nextByte accordingly
+ *   the machine code corresponds to a 'return' command (form: 'ret? varc varc')
  * Parameters:
- *   size: a pointer to where we'll store the size, in bytes, of the resulting machine code
- * Returns:
- *   an array of machine code, corresponding to a conditional return
+ *   code: the generated machine code
+ *   nextByte: the size of the machine code until now
  */
-static char * getRet(int *size, varc_t cond, varc_t retVal){
-  return NULL;
+static void addRet(void *code, int *nextByte, varc_t cond, varc_t retVal){
+  addByte(code, nextByte, 0xb8);
+  addByte(code, nextByte, 0x01);
+  addByte(code, nextByte, 0x00);
+  addByte(code, nextByte, 0x00);
+  addByte(code, nextByte, 0x00);
 }
 
+static void addByte(void *code, int *nextByte, unsigned char mach){
+  printf("%x ", mach);
+  ((unsigned char*)code)[(*nextByte)++] = mach;
+}

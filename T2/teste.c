@@ -10,17 +10,20 @@ int main(int argc, char **argv){
     exit(EXIT_FAILURE);
   }
 
-  FILE *f = fopen(argv[1], "r");
+  FILE *fp = fopen(argv[1], "r");
   void *code;
-  funcp entry;
+  funcp entry, f;
 
-  if(f == NULL){
+  if(fp == NULL){
     fprintf (stderr, "nao conseguiu abrir arquivo!\n");
     exit(EXIT_FAILURE);
   }
 
-  gera(f, &code, &entry);
+  gera(fp, &code, &entry);
+  f = (funcp)code;
 
-  fclose(f);
+  printf("output: %d\n", f());
+
+  fclose(fp);
   return 0;
 }
