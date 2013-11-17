@@ -13,10 +13,10 @@ int main(int argc, char **argv){
   FILE *fp = fopen(argv[1], "r");
   void *code;
   funcp entry;
-  int param = 0;
+  int i, param[10] = {0};
 
-  if(argc >= 3){
-    param = atoi(argv[2]);
+  for(i=2; i<argc; i++){
+    param[i-2] = atoi(argv[i]);
   }
 
   if(fp == NULL){
@@ -26,7 +26,7 @@ int main(int argc, char **argv){
 
   gera(fp, &code, &entry);
 
-  printf("output: %d\n", entry(param));
+  printf("output: %d\n", entry(param[0], param[1], param[2], param[3], param[4], param[5], param[6], param[7], param[8], param[9]));
 
   fclose(fp);
   return 0;
