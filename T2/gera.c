@@ -90,6 +90,14 @@ static void varc_debug_print(varc_t v){
   debug_printf1("%d", v.i);
 }
 
+static int varc_ebp_offset(varc_t v){
+  if(v.type == PARAM)
+    return v.i * 4 + 8;
+  if(v.type == LOCAL) 
+    return -(v.i * 4) - 4;
+  return 0;
+}
+
 /*********************
  * Exported functions.
  *********************/
@@ -103,7 +111,7 @@ void gera(FILE *f, void ** code, funcp * entry){
   while( fscanf(f, " %[^\n]", bufferSB) == 1 && readLines<LINE_MAX){
     readLines++;
     
-    debug_printf1("%03d: ", readLines);
+    debug_printf1("\n%3d: ", readLines);
     debug_printf1("%s\n", bufferSB);
 
     parseLine(bufferSB, *code, &nextByte);
@@ -169,6 +177,11 @@ static void parseLine(char *bufferSB, void *code, int *nextByte){
 
     var1 = varc_parse(bufferSB, &offset);
 
+    if(var1.type == NUMBER){
+      printf("Comando invalido: %s\n", bufferSB);
+      exit(EXIT_FAILURE);
+    }
+
     debug_printf0("   > ");
     varc_debug_print(var1);
     debug_printf0(" = ");
@@ -195,6 +208,12 @@ static void parseLine(char *bufferSB, void *code, int *nextByte){
       debug_printf1(" %c ", op);
       varc_debug_print(var3);
       debug_printf0(" \n");
+
+      if(op != '+' && op != '-' && op != '*'){
+        printf("Comando invalido: %s\n", bufferSB);
+        exit(EXIT_FAILURE);
+      }
+
       addOp(code, nextByte, var1, var2, op, var3);
       return;
     }
@@ -255,9 +274,18 @@ static varc_t varc_parse(char * str, int *length){
  * Parameters:
  *   code: the generated machine code
  *   nextByte: the size of the machine code until now
+ * Code:
+ *   0x55           = push %ebp
+ *   0x89 0xe5      = mov %esp, %ebp
+ *   0x83 0xec 0x28 = sub $40, %esp
  */
 static void addFunc(void *code, int *nextByte){
-
+  addByte(code, nextByte, 0x55);
+  addByte(code, nextByte, 0x89);
+  addByte(code, nextByte, 0xe5);
+  addByte(code, nextByte, 0x83);
+  addByte(code, nextByte, 0xec);
+  addByte(code, nextByte, 0x28);
 }
 
 /* 
@@ -267,14 +295,26 @@ static void addFunc(void *code, int *nextByte){
  * Parameters:
  *   code: the generated machine code
  *   nextByte: the size of the machine code until now
+ * Code:
+ *   0x89 0xec = mov %ebp, %esp
+ *   0x5d      = pop %ebp
+ *   0xc3      = ret
  */
 static void addEnd(void *code, int *nextByte){
-  addByte(code, nextByte, 0xb8);
-  addByte(code, nextByte, 0x01);
-  addByte(code, nextByte, 0x00);
-  addByte(code, nextByte, 0x00);
-  addByte(code, nextByte, 0x00);
+  addByte(code, nextByte, 0x89);
+  addByte(code, nextByte, 0xec);
+  addByte(code, nextByte, 0x5d);
   addByte(code, nextByte, 0xc3);
+}
+
+static void addLittleEndianNumber(void *code, int *nextByte, int num){
+  addByte(code, nextByte, num & 0xff);
+  num >>= 8;
+  addByte(code, nextByte, num & 0xff);
+  num >>= 8;
+  addByte(code, nextByte, num & 0xff);
+  num >>= 8;
+  addByte(code, nextByte, num & 0xff);
 }
 
 /* 
@@ -286,7 +326,59 @@ static void addEnd(void *code, int *nextByte){
  *   nextByte: the size of the machine code until now
  */
 static void addOp(void *code, int *nextByte, varc_t var1, varc_t var2, op_t op, varc_t var3){
+  int offset;
+  
+  // mov var2, %ecx
+  // mov var3, %edx
+  // op %edx, %ecx
+  // mov %edx, var1
+  
+  if(var2.type == NUMBER){
+    // mov $x, %ecx
+    addByte(code, nextByte, 0xb9);
+    addLittleEndianNumber(code, nextByte, var2.i);
+  } else {
+    // mov offset(%ebp), %edx
+    
+    offset = varc_ebp_offset(var2);
+    addByte(code, nextByte, 0x8b);
+    addByte(code, nextByte, 0x4d);
+    addByte(code, nextByte, offset);
+  }
 
+  if(var3.type == NUMBER){
+    // mov $x, %edx
+    addByte(code, nextByte, 0xba);
+    addLittleEndianNumber(code, nextByte, var3.i);
+  } else {
+    // mov offset(%ebp), %edx
+    
+    offset = varc_ebp_offset(var3);
+    addByte(code, nextByte, 0x8b);
+    addByte(code, nextByte, 0x55);
+    addByte(code, nextByte, offset);
+  }
+
+  if(op == '+'){
+    // add %edx, %ecx
+    addByte(code, nextByte, 0x01);
+    addByte(code, nextByte, 0xd1);
+  } else if(op == '-'){
+    // sub %edx, %ecx
+    addByte(code, nextByte, 0x29);
+    addByte(code, nextByte, 0xd1);
+  } else {
+    // imul %edx, %ecx
+    addByte(code, nextByte, 0x0f);
+    addByte(code, nextByte, 0xaf);
+    addByte(code, nextByte, 0xca);
+  }
+
+  // mov %ecx, offset(%ebp)
+  offset = varc_ebp_offset(var1);
+  addByte(code, nextByte, 0x89);
+  addByte(code, nextByte, 0x4d);
+  addByte(code, nextByte, offset);
 }
 
 /* 
@@ -308,17 +400,33 @@ static void addCall(void *code, int *nextByte, varc_t var1, funcid_t n, varc_t v
  * Parameters:
  *   code: the generated machine code
  *   nextByte: the size of the machine code until now
+ * Code:
+ *   b8 01 00 00 00 = mov $1, %eax
  */
 static void addRet(void *code, int *nextByte, varc_t cond, varc_t retVal){
-  addByte(code, nextByte, 0xb8);
-  addByte(code, nextByte, 0x01);
-  addByte(code, nextByte, 0x00);
-  addByte(code, nextByte, 0x00);
-  addByte(code, nextByte, 0x00);
-  addByte(code, nextByte, 0xc3);
+  // mov retVal, %eax
+
+  int offset;  
+  
+  if(retVal.type == NUMBER){
+    // mov $i, %eax
+
+    addByte(code, nextByte, 0xb8);
+    addLittleEndianNumber(code, nextByte, retVal.i);
+  } else {
+    // mov offset(%ebp), %eax
+
+    offset = varc_ebp_offset(retVal);
+    addByte(code, nextByte, 0x8b);
+    addByte(code, nextByte, 0x45);
+    addByte(code, nextByte, offset);
+  }
+
+  // ret
+  addEnd(code, nextByte);
 }
 
 static void addByte(void *code, int *nextByte, unsigned char mach){
-  printf("%x ", mach);
+  debug_printf1("%x ", mach);
   ((unsigned char*)code)[(*nextByte)++] = mach;
 }
