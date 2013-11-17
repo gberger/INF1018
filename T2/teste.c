@@ -25,9 +25,10 @@ int main(int argc, char **argv){
   }
 
   gera(fp, &code, &entry);
+  fclose(fp);
 
   printf("output: %d\n", entry(param[0], param[1], param[2], param[3], param[4], param[5], param[6], param[7], param[8], param[9]));
-
-  fclose(fp);
+  
+  free(code);
   return 0;
 }
