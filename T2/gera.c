@@ -77,7 +77,7 @@ static varc_t varc_parse(char * str, int *length);
 
 static void debug_dump_code(void ** code, int nextByte){
   int i;
-  debug_printf0("\ncode: ");
+  debug_printf0("\nfinal code: ");
   for(i=0; i<nextByte; i++){
     debug_printf1("%x ", ((*(unsigned char**)code))[i]);
   }
@@ -98,12 +98,20 @@ static int varc_ebp_offset(varc_t v){
   return 0;
 }
 
+static void debug_showLineCode(unsigned char* code, int start, int end){
+  debug_printf0("   # ");
+  for(; start<end; start++){
+    debug_printf1("%02x ", code[start]);
+  }
+  debug_printf0("\n");
+}
+
 /*********************
  * Exported functions.
  *********************/
 void gera(FILE *f, void ** code, funcp * entry){
   char bufferSB[LINE_SIZE] = {0};
-  int readLines = 0, nextByte = 0;
+  int readLines = 0, nextByte = 0, firstLineByte = 0;
 
   // todo refactor malloc size
   *code = malloc(sizeof(char) * LINE_MAX  * 10);
@@ -111,10 +119,12 @@ void gera(FILE *f, void ** code, funcp * entry){
   while( fscanf(f, " %[^\n]", bufferSB) == 1 && readLines<LINE_MAX){
     readLines++;
     
-    debug_printf1("\n%3d: ", readLines);
+    debug_printf1("%3d: ", readLines);
     debug_printf1("%s\n", bufferSB);
 
+    firstLineByte = nextByte;
     parseLine(bufferSB, *code, &nextByte);
+    debug_showLineCode(*code, firstLineByte, nextByte);
   }
 
   debug_dump_code(code, nextByte);
@@ -307,6 +317,12 @@ static void addEnd(void *code, int *nextByte){
   addByte(code, nextByte, 0xc3);
 }
 
+/* 
+ * Description:
+ *   
+ * 
+ */
+
 static void addLittleEndianNumber(void *code, int *nextByte, int num){
   addByte(code, nextByte, num & 0xff);
   num >>= 8;
@@ -400,13 +416,42 @@ static void addCall(void *code, int *nextByte, varc_t var1, funcid_t n, varc_t v
  * Parameters:
  *   code: the generated machine code
  *   nextByte: the size of the machine code until now
- * Code:
- *   b8 01 00 00 00 = mov $1, %eax
  */
 static void addRet(void *code, int *nextByte, varc_t cond, varc_t retVal){
-  // mov retVal, %eax
 
-  int offset;  
+  int offset, toFix;
+
+  // mov cond, %ecx
+  // cmp $0, %ecx,
+  // jne ...
+  // mov [retVal], %eax
+  // (end)
+  // :...
+  
+  if(cond.type == NUMBER){
+    // mov $x, %ecx
+    addByte(code, nextByte, 0xb9);
+    addLittleEndianNumber(code, nextByte, cond.i);
+  } else {
+    // mov offset(%ebp), %edx
+    
+    offset = varc_ebp_offset(cond);
+    addByte(code, nextByte, 0x8b);
+    addByte(code, nextByte, 0x4d);
+    addByte(code, nextByte, offset);
+  }
+
+  // cmp $0, %ecx
+  addByte(code, nextByte, 0x83);
+  addByte(code, nextByte, 0xf9);
+  addByte(code, nextByte, 0x00);
+
+  // jne ...
+  addByte(code, nextByte, 0x0f);  
+  addByte(code, nextByte, 0x85);
+  // come back later to fix it
+  toFix = *nextByte;
+  (*nextByte) += 4;
   
   if(retVal.type == NUMBER){
     // mov $i, %eax
@@ -424,9 +469,14 @@ static void addRet(void *code, int *nextByte, varc_t cond, varc_t retVal){
 
   // ret
   addEnd(code, nextByte);
+
+  // fix the jump
+  // the math is:
+  // address_to_jump_to - address_after_jump_instruction
+  offset = (int)(*nextByte) - (toFix + 4);
+  addLittleEndianNumber(code, &toFix, offset);
 }
 
 static void addByte(void *code, int *nextByte, unsigned char mach){
-  debug_printf1("%x ", mach);
   ((unsigned char*)code)[(*nextByte)++] = mach;
 }
