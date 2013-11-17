@@ -12,7 +12,7 @@ int main(int argc, char **argv){
 
   FILE *fp = fopen(argv[1], "r");
   void *code;
-  funcp entry, f;
+  funcp entry;
 
   if(fp == NULL){
     fprintf (stderr, "nao conseguiu abrir arquivo!\n");
@@ -20,9 +20,8 @@ int main(int argc, char **argv){
   }
 
   gera(fp, &code, &entry);
-  f = (funcp)code;
 
-  printf("output: %d\n", f());
+  printf("output: %d\n", entry());
 
   fclose(fp);
   return 0;

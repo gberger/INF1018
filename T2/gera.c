@@ -75,7 +75,7 @@ static void addRet(void *code, int *nextByte, varc_t cond, varc_t retVal);
 static void addByte(void *code, int *nextByte, unsigned char mach);
 static varc_t varc_parse(char * str, int *length);
 
-void debug_dump_code(void ** code, int nextByte){
+static void debug_dump_code(void ** code, int nextByte){
   int i;
   debug_printf0("\ncode: ");
   for(i=0; i<nextByte; i++){
@@ -84,7 +84,7 @@ void debug_dump_code(void ** code, int nextByte){
   debug_printf0("\n");
 }
 
-void varc_debug_print(varc_t v){
+static void varc_debug_print(varc_t v){
   char c = (v.type == NUMBER ? '$' : v.type == LOCAL  ? 'v' : 'p');
   debug_printf1("%c", c);
   debug_printf1("%d", v.i);
@@ -110,7 +110,7 @@ void gera(FILE *f, void ** code, funcp * entry){
   }
 
   debug_dump_code(code, nextByte);
-
+  *entry = (funcp)(*code);
 }
 
 void libera(void *code){
@@ -269,6 +269,11 @@ static void addFunc(void *code, int *nextByte){
  *   nextByte: the size of the machine code until now
  */
 static void addEnd(void *code, int *nextByte){
+  addByte(code, nextByte, 0xb8);
+  addByte(code, nextByte, 0x01);
+  addByte(code, nextByte, 0x00);
+  addByte(code, nextByte, 0x00);
+  addByte(code, nextByte, 0x00);
   addByte(code, nextByte, 0xc3);
 }
 
@@ -310,6 +315,7 @@ static void addRet(void *code, int *nextByte, varc_t cond, varc_t retVal){
   addByte(code, nextByte, 0x00);
   addByte(code, nextByte, 0x00);
   addByte(code, nextByte, 0x00);
+  addByte(code, nextByte, 0xc3);
 }
 
 static void addByte(void *code, int *nextByte, unsigned char mach){
