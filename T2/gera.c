@@ -66,36 +66,30 @@ typedef int funcid_t;
 /******************************
  * Local functions definitions.
  ******************************/
-static void parseLine(char *bufferSB, void *code, int *nextByte);
-static void addFunc(void *code, int *nextByte);
+static void parseLine(char *bufferSB, void *code, int *nextByte, int *functions, int *nextFunction);
+static void addFunc(void *code, int *nextByte, int *functions, int *nextFunction);
 static void addEnd(void *code, int *nextByte);
 static void addOp(void *code, int *nextByte, varc_t var1, varc_t var2, op_t op, varc_t var3);
-static void addCall(void *code, int *nextByte, varc_t var1, funcid_t n, varc_t var2);
+static void addCall(void *code, int *nextByte, varc_t var1, funcid_t n, varc_t var2, int *functions);
 static void addRet(void *code, int *nextByte, varc_t cond, varc_t retVal);
+static void addLittleEndianNumber(void *code, int *nextByte, int num);
 static void addByte(void *code, int *nextByte, unsigned char mach);
 static varc_t varc_parse(char * str, int *length);
+static int varc_ebp_offset(varc_t v);
 
 static void debug_dump_code(void ** code, int nextByte){
   int i;
   debug_printf0("\nfinal code: ");
   for(i=0; i<nextByte; i++){
-    debug_printf1("%x ", ((*(unsigned char**)code))[i]);
+    debug_printf1("%02x ", ((*(unsigned char**)code))[i]);
   }
   debug_printf0("\n");
 }
 
-static void varc_debug_print(varc_t v){
+static void debug_varc_print(varc_t v){
   char c = (v.type == NUMBER ? '$' : v.type == LOCAL  ? 'v' : 'p');
   debug_printf1("%c", c);
   debug_printf1("%d", v.i);
-}
-
-static int varc_ebp_offset(varc_t v){
-  if(v.type == PARAM)
-    return v.i * 4 + 8;
-  if(v.type == LOCAL) 
-    return -(v.i * 4) - 4;
-  return 0;
 }
 
 static void debug_showLineCode(unsigned char* code, int start, int end){
@@ -111,10 +105,11 @@ static void debug_showLineCode(unsigned char* code, int start, int end){
  *********************/
 void gera(FILE *f, void ** code, funcp * entry){
   char bufferSB[LINE_SIZE] = {0};
-  int readLines = 0, nextByte = 0, firstLineByte = 0;
+  int readLines = 0, nextByte = 0, firstLineByte = 0, functions[10], nextFunction = 0;
+  int i;
 
-  // todo refactor malloc size
-  *code = malloc(sizeof(char) * LINE_MAX  * 10);
+  // the largest line has 21 bytes
+  *code = malloc(sizeof(char) * LINE_MAX  * 21);
 
   while( fscanf(f, " %[^\n]", bufferSB) == 1 && readLines<LINE_MAX){
     readLines++;
@@ -123,12 +118,16 @@ void gera(FILE *f, void ** code, funcp * entry){
     debug_printf1("%s\n", bufferSB);
 
     firstLineByte = nextByte;
-    parseLine(bufferSB, *code, &nextByte);
+    parseLine(bufferSB, *code, &nextByte, functions, &nextFunction);
     debug_showLineCode(*code, firstLineByte, nextByte);
   }
 
   debug_dump_code(code, nextByte);
-  *entry = (funcp)(*code);
+  *entry = (funcp) ((*code) + functions[nextFunction-1]);
+
+  for(i=0; i<nextFunction; i++){
+    printf("FUNC AT %d\n", functions[i]);
+  }
 }
 
 void libera(void *code){
@@ -139,6 +138,7 @@ void libera(void *code){
  * Local functions implementations.
  **********************************/
 
+
 /* 
  * Description:
  *   adds machine code at the end of code and increments nextByte accordingly
@@ -147,8 +147,10 @@ void libera(void *code){
  *   bufferSB: a line of SB code
  *   code: the generated machine code
  *   nextByte: the size of the machine code until now
+ *   functions: the array of function indexes
+ *   nextFunction: pointer to the length of the array
  */
-static void parseLine(char *bufferSB, void *code, int *nextByte){
+static void parseLine(char *bufferSB, void *code, int *nextByte, int *functions, int *nextFunction){
   //we can have up to three varc in a command
   varc_t var1, var2, var3;
   op_t op;
@@ -165,7 +167,7 @@ static void parseLine(char *bufferSB, void *code, int *nextByte){
 
     debug_printf0("   > function\n");
     
-    addFunc(code, nextByte);
+    addFunc(code, nextByte, functions, nextFunction);
     return;
   }
   
@@ -193,7 +195,7 @@ static void parseLine(char *bufferSB, void *code, int *nextByte){
     }
 
     debug_printf0("   > ");
-    varc_debug_print(var1);
+    debug_varc_print(var1);
     debug_printf0(" = ");
 
     if(bufferSB[5] == 'c'){
@@ -202,10 +204,10 @@ static void parseLine(char *bufferSB, void *code, int *nextByte){
       var2 = varc_parse(bufferSB + 12, &offset);
 
       debug_printf1("call %d ", (int)n);
-      varc_debug_print(var2);
+      debug_varc_print(var2);
       debug_printf0("\n");
 
-      addCall(code, nextByte, var1, n, var2);
+      addCall(code, nextByte, var1, n, var2, functions);
       return;
     } else {
       //var = varc op varc
@@ -214,9 +216,9 @@ static void parseLine(char *bufferSB, void *code, int *nextByte){
       op = bufferSB[5 + offset + 1];
       var3 = varc_parse(bufferSB + 5 + offset + 3, &offset);
 
-      varc_debug_print(var2);
+      debug_varc_print(var2);
       debug_printf1(" %c ", op);
-      varc_debug_print(var3);
+      debug_varc_print(var3);
       debug_printf0(" \n");
 
       if(op != '+' && op != '-' && op != '*'){
@@ -236,9 +238,9 @@ static void parseLine(char *bufferSB, void *code, int *nextByte){
     var1 = varc_parse(bufferSB + 5, &offset);
     var2 = varc_parse(bufferSB + 5 + offset + 1, &offset);
 
-    varc_debug_print(var1);
+    debug_varc_print(var1);
     debug_printf0(" ");
-    varc_debug_print(var2);
+    debug_varc_print(var2);
     debug_printf0("\n");
 
     addRet(code, nextByte, var1, var2);
@@ -250,46 +252,22 @@ static void parseLine(char *bufferSB, void *code, int *nextByte){
 }
 
 /* 
- * Parameters:
- *   str: a string representing a varc in its first values. It can contain anything afterwards.
- *   length: pointer that will be updated to be the number of characters of the varc.
- * Returns:
- *   the varc_t corresponding to the given string.
- */
-static varc_t varc_parse(char * str, int *length){
-  varc_t varc;
-
-  if(str[0] == '$')
-    varc.type = NUMBER;
-  else if(str[0] == 'v')
-    varc.type = LOCAL;
-  else
-    varc.type = PARAM;
-
-  varc.i = atoi(str + 1);
-  
-  *length = 0;
-  while(*str != ' ' && *str != '\0'){
-    str++;
-    (*length)++;
-  }
-
-  return varc;
-}
-
-/* 
  * Description:
  *   adds machine code at the end of code and increments nextByte accordingly
  *   the machine code corresponds to a 'function' command
  * Parameters:
  *   code: the generated machine code
  *   nextByte: the size of the machine code until now
+ *   functions: the array of function indexes
+ *   nextFunction: the size of the array
  * Code:
  *   0x55           = push %ebp
  *   0x89 0xe5      = mov %esp, %ebp
  *   0x83 0xec 0x28 = sub $40, %esp
  */
-static void addFunc(void *code, int *nextByte){
+static void addFunc(void *code, int *nextByte, int *functions, int *nextFunction){
+  functions[(*nextFunction)++] = *nextByte;
+
   addByte(code, nextByte, 0x55);
   addByte(code, nextByte, 0x89);
   addByte(code, nextByte, 0xe5);
@@ -315,22 +293,6 @@ static void addEnd(void *code, int *nextByte){
   addByte(code, nextByte, 0xec);
   addByte(code, nextByte, 0x5d);
   addByte(code, nextByte, 0xc3);
-}
-
-/* 
- * Description:
- *   
- * 
- */
-
-static void addLittleEndianNumber(void *code, int *nextByte, int num){
-  addByte(code, nextByte, num & 0xff);
-  num >>= 8;
-  addByte(code, nextByte, num & 0xff);
-  num >>= 8;
-  addByte(code, nextByte, num & 0xff);
-  num >>= 8;
-  addByte(code, nextByte, num & 0xff);
 }
 
 /* 
@@ -405,7 +367,46 @@ static void addOp(void *code, int *nextByte, varc_t var1, varc_t var2, op_t op, 
  *   code: the generated machine code
  *   nextByte: the size of the machine code until now
  */
-static void addCall(void *code, int *nextByte, varc_t var1, funcid_t n, varc_t var2){
+static void addCall(void *code, int *nextByte, varc_t var1, funcid_t n, varc_t var2, int *functions){
+  int offset;
+
+  // mov var2, %ecx
+  // push %ecx
+  // call n
+  // add $4, %esp
+  // mov %eax, var1
+
+  if(var2.type == NUMBER){
+    // mov $x, %ecx
+    addByte(code, nextByte, 0xb9);
+    addLittleEndianNumber(code, nextByte, var2.i);
+  } else {
+    // mov offset(%ebp), %edx
+    
+    offset = varc_ebp_offset(var2);
+    addByte(code, nextByte, 0x8b);
+    addByte(code, nextByte, 0x4d);
+    addByte(code, nextByte, offset);
+  }
+
+  // push %ecx
+  addByte(code, nextByte, 0x51);
+
+  // call 
+  addByte(code, nextByte, 0xe8);
+  offset = functions[(int)n] - (*nextByte + 4);
+  addLittleEndianNumber(code, nextByte, offset);
+
+  // add $4, %esp
+  addByte(code, nextByte, 0x83);
+  addByte(code, nextByte, 0xc4);
+  addByte(code, nextByte, 0x04);
+
+  // mov %eax, offset(%ebp)
+  offset = varc_ebp_offset(var1);
+  addByte(code, nextByte, 0x89);
+  addByte(code, nextByte, 0x45);
+  addByte(code, nextByte, offset); 
 
 }
 
@@ -424,8 +425,8 @@ static void addRet(void *code, int *nextByte, varc_t cond, varc_t retVal){
   // mov cond, %ecx
   // cmp $0, %ecx,
   // jne ...
-  // mov [retVal], %eax
-  // (end)
+  // mov retVal, %eax
+  // (addEnd)
   // :...
   
   if(cond.type == NUMBER){
@@ -477,6 +478,71 @@ static void addRet(void *code, int *nextByte, varc_t cond, varc_t retVal){
   addLittleEndianNumber(code, &toFix, offset);
 }
 
+/* 
+ * Description:
+ *   adds the given number to the code in little endian notation.
+ *   useful when using "mov $num, ..." and "jump num"
+ * Parameters:
+ *   code: the generated machine code
+ *   nextByte: the size of the machine code until now
+ *   num: the number to be added
+ */
+
+static void addLittleEndianNumber(void *code, int *nextByte, int num){
+  addByte(code, nextByte, num & 0xff);
+  num >>= 8;
+  addByte(code, nextByte, num & 0xff);
+  num >>= 8;
+  addByte(code, nextByte, num & 0xff);
+  num >>= 8;
+  addByte(code, nextByte, num & 0xff);
+}
+
+/*
+ * Description:
+ *   adds the given machine code to the code array
+ *   also increments the value pointed by nextByte
+ */
 static void addByte(void *code, int *nextByte, unsigned char mach){
   ((unsigned char*)code)[(*nextByte)++] = mach;
+}
+
+/* 
+ * Parameters:
+ *   str: a string representing a varc in its first values. It can contain anything afterwards.
+ *   length: pointer that will be updated to be the number of characters of the varc.
+ * Returns:
+ *   the varc_t corresponding to the given string.
+ */
+static varc_t varc_parse(char * str, int *length){
+  varc_t varc;
+
+  if(str[0] == '$')
+    varc.type = NUMBER;
+  else if(str[0] == 'v')
+    varc.type = LOCAL;
+  else
+    varc.type = PARAM;
+
+  varc.i = atoi(str + 1);
+  
+  *length = 0;
+  while(*str != ' ' && *str != '\0'){
+    str++;
+    (*length)++;
+  }
+
+  return varc;
+}
+
+/*
+ * Description
+ *   gives the offset of the address of the varc, in relation to %ebp
+ */
+static int varc_ebp_offset(varc_t v){
+  if(v.type == PARAM)
+    return v.i * 4 + 8;
+  if(v.type == LOCAL) 
+    return -(v.i * 4) - 4;
+  return 0;
 }

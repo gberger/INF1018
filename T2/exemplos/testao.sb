@@ -1,0 +1,13 @@
+function
+ret? p0 $0
+ret? p1 $1
+ret? p2 $2
+ret? p3 $3
+ret? p4 $4
+ret? p5 $5
+ret? p6 $6
+ret? p7 $7
+ret? p8 $8
+ret? p9 $9
+ret? $0 $-1
+end
