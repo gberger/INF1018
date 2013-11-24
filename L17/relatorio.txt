@@ -1,0 +1,34 @@
+1)
+A função foo consegue acessar a, pois está sendo externalizada no temp1.h
+
+2)
+D indica um símbolo na área de dados inicializados
+U indica um símbolo indefinido
+T indica um símbolo na área de texto (código)
+
+nm temp1.o:
+Como ainda não ocorreu a ligação, foo e printf são indefinidos (U)
+main é uma função implementada em temp1.c, por isso é T
+a é um símbolo iniciaizado, por isso é D
+
+nm temp2.o:
+a é indefinido, pois não ocorreu a ligação ainda (U)
+foo é uma função implementada em temp2.c, portanto é T
+b é um símbolo iniciaizado, por isso é D
+
+3)
+Ocorreu um compie-time error, pois o símbolo a já havia sido previamente declarado em temp1.h com outro tipo.
+
+4a)
+A função foo interpreta a como um char. Quando foo considera a como char e atribui um valor a ele, somente o primeiro byte é modificado. Por isso vamos o resutado 1277: corresponde a 0x4FD, sendo que 1024 é 0x400 e (char) -3 é 0xFD
+
+4b)
+O ld retorna com erro, pois a é iniciaizado duas vezes.
+
+4c)
+Em temp2, a fica na seção de dados não-inicializados.
+
+5)
+Agora, em temp1, a declaração de b é implicita. Assim, conseguimos executar b como função.
+Na primeira vez, ocorre segfault, pois o que está em b (e o que está depois de b!) não é um código de máquina "útil".
+Depois de mudarmos para 0xc3, que é o código de máquina de "ret", a "função" b retorna normalmente e a main executa até o fim.
