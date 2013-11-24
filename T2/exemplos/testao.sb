@@ -43,7 +43,7 @@ ret? $0 u0
 end
 
 function
-ret? z0 $123456
+ret? z0 $12345
 z0 = z0 * 10
 z1 = z0 + z0
 z2 = z1 + z1
