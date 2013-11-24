@@ -99,6 +99,7 @@ static void debug_showLineCode(unsigned char* code, int start, int end){
   debug_printf0("\n");
 }
 
+
 /*********************
  * Exported functions.
  *********************/
@@ -109,6 +110,11 @@ void gera(FILE *f, void ** code, funcp * entry){
 
   // the largest line has 21 bytes
   *code = malloc(sizeof(char) * LINE_MAX  * 21);
+
+  if(*code == NULL){
+    fprintf(stderr, "Falta de memoria ao alocar espaco para codigo SB.\n")
+    exit(EXIT_FAILURE);
+  }
 
   while( fscanf(f, " %[^\n]", bufferSB) == 1 && readLines<LINE_MAX){
     readLines++;
@@ -162,7 +168,7 @@ static void parseLine(char *bufferSB, void *code, int *nextByte, int *functions,
   if (bufferSB[0] == 'f'){
     //function
     if(strcmp(bufferSB, "function") != 0){
-      printf("Comando invalido: %s\n", bufferSB);
+      fprintf(stderr, "Comando invalido: %s\n", bufferSB);
       exit(EXIT_FAILURE);
     }
 
@@ -175,7 +181,7 @@ static void parseLine(char *bufferSB, void *code, int *nextByte, int *functions,
   if (bufferSB[0] == 'e'){
     //end
     if(strcmp(bufferSB, "end") != 0){
-      printf("Comando invalido: %s\n", bufferSB);
+      fprintf(stderr, "Comando invalido: %s\n", bufferSB);
       exit(EXIT_FAILURE);
     }
     
@@ -191,7 +197,7 @@ static void parseLine(char *bufferSB, void *code, int *nextByte, int *functions,
     var1 = varc_parse(bufferSB, &offset);
 
     if(var1.type == NUMBER){
-      printf("Comando invalido: %s\n", bufferSB);
+      fprintf(stderr, "Comando invalido: %s\n", bufferSB);
       exit(EXIT_FAILURE);
     }
 
@@ -223,7 +229,7 @@ static void parseLine(char *bufferSB, void *code, int *nextByte, int *functions,
       debug_printf0(" \n");
 
       if(op != '+' && op != '-' && op != '*'){
-        printf("Comando invalido: %s\n", bufferSB);
+        fprintf(stderr, "Comando invalido: %s\n", bufferSB);
         exit(EXIT_FAILURE);
       }
 
@@ -248,7 +254,7 @@ static void parseLine(char *bufferSB, void *code, int *nextByte, int *functions,
     return;
   }
 
-  printf("Comando invalido: %s\n", bufferSB);
+  fprintf(stderr, "Comando invalido: %s\n", bufferSB);
   exit(EXIT_FAILURE);
 }
 
