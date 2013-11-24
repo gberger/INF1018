@@ -9,13 +9,13 @@
 #define LINE_SIZE 32
 #define LINE_MAX 100
 
-//#ifdef DEBUG
+#ifdef DEBUG_GERA
   #define debug_printf0(x) (printf(x))
   #define debug_printf1(x, y) (printf(x, y))
-//#else
-  //#define debug_printf0(x)
-  //#define debug_printf1(x, y) 
-//#endif
+#else
+  #define debug_printf0(x)
+  #define debug_printf1(x, y) 
+#endif
 
 
 /**************
@@ -87,8 +87,7 @@ static void debug_dump_code(void ** code, int nextByte){
 }
 
 static void debug_varc_print(varc_t v){
-  char c = (v.type == NUMBER ? '$' : v.type == LOCAL  ? 'v' : 'p');
-  debug_printf1("%c", c);
+  debug_printf1("%c", (v.type == NUMBER ? '$' : v.type == LOCAL  ? 'v' : 'p'));
   debug_printf1("%d", v.i);
 }
 
@@ -126,8 +125,10 @@ void gera(FILE *f, void ** code, funcp * entry){
   *entry = (funcp) ((*code) + functions[nextFunction-1]);
 
   for(i=0; i<nextFunction; i++){
-    printf("FUNC AT %d\n", functions[i]);
+    debug_printf1("Function %d ",   i);
+    debug_printf1("at index %d\n", functions[i]);
   }
+  debug_printf1("Total bytes: %d\n", nextByte);
 }
 
 void libera(void *code){

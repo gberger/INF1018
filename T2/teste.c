@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include "gera.h"
 
-#define DEBUG 1
 
 int main(int argc, char **argv){
   if (argc < 2){
