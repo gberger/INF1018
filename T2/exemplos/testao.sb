@@ -11,53 +11,44 @@ ret? p8 $8
 ret? p9 $9
 ret? $0 $-1
 end
-
 function
-ret? o0 -$5
-o0 = o0 + $9
-ret? $0 o0
+ret? p0 -$5
+v0 = v0 + $9
+ret? $0 v0
 end
-
 function
-ret? t0 $1
-t0 = t0 * $2
-t1 = t0 + $5
-t2 = t1 * t0
-t3 = t2 - $1
-t4 = t3 + $1
-t5 = t4 * t4
-t6 = t5 + t4
-t7 = t6
-t8 = t7 + $10
-t9 = t8 - t8
-ret? $0 t9
+ret? p0 $1
+v0 = p0 * $2
+v1 = v0 + $5
+v2 = v1 * v0
+v3 = v2 - $1
+v4 = v3 + $1
+v5 = v4 * v4
+v6 = v5 + v4
+v7 = v6
+v8 = v7 + $10
+v9 = v8 - v8
+ret? $0 v9
 end
-
 function
-ret? u0 $1
-u0 = u0 + 1
-call 2 u0
-u0 = u0 * 2
-call 2 u0
-ret? $0 u0
+ret? p0 $1
+v0 = p0 + 1
+call 2 v0
+v0 = v0 * 2
+call 2 v0
+ret? $0 v0
 end
-
 function
-ret? z0 $12345
-z0 = z0 * 10
-z1 = z0 + z0
-z2 = z1 + z1
-z3 = z2 * z2
-z4 = z3 - z2
-z5 = z4 * z3
-z6 = z5 + z5
-z7 = z6 * z6
-z8 = z7 * z7
-z9 = z8 * z8
-ret? $0 z9
+ret? p0 $12345
+v0 = p0 * 10
+v1 = v0 + v0
+v2 = v1 + v1
+v3 = v2 * v2
+v4 = v3 - v2
+v5 = v4 * v3
+v6 = v5 + v5
+v7 = v6 * v6
+v8 = v7 * v7
+v9 = v8 * v8
+ret? $0 v9
 end
-
-
-
-
-
