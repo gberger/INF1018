@@ -9,14 +9,6 @@
 #define LINE_SIZE 32
 #define LINE_MAX 100
 
-#ifdef DEBUG_GERA
-  #define debug_printf0(x) (printf(x))
-  #define debug_printf1(x, y) (printf(x, y))
-#else
-  #define debug_printf0(x)
-  #define debug_printf1(x, y) 
-#endif
-
 
 /**************
  * Local types.
@@ -77,36 +69,13 @@ static void addByte(void *code, int *nextByte, unsigned char mach);
 static varc_t varc_parse(char * str, int *length);
 static int varc_ebp_offset(varc_t v);
 
-static void debug_dump_code(void ** code, int nextByte){
-  int i;
-  debug_printf0("\nfinal code: ");
-  for(i=0; i<nextByte; i++){
-    debug_printf1("%02x ", ((*(unsigned char**)code))[i]);
-  }
-  debug_printf0("\n");
-}
-
-static void debug_varc_print(varc_t v){
-  debug_printf1("%c", (v.type == NUMBER ? '$' : v.type == LOCAL  ? 'v' : 'p'));
-  debug_printf1("%d", v.i);
-}
-
-static void debug_showLineCode(unsigned char* code, int start, int end){
-  debug_printf0("   # ");
-  for(; start<end; start++){
-    debug_printf1("%02x ", code[start]);
-  }
-  debug_printf0("\n");
-}
-
 
 /*********************
  * Exported functions.
  *********************/
 void gera(FILE *f, void ** code, funcp * entry){
   char bufferSB[LINE_SIZE] = {0};
-  int readLines = 0, nextByte = 0, firstLineByte = 0, functions[10], nextFunction = 0;
-  int i;
+  int readLines = 0, nextByte = 0, functions[10], nextFunction = 0;
 
   // the largest line has 21 bytes
   *code = malloc(sizeof(char) * LINE_MAX  * 21);
@@ -119,22 +88,11 @@ void gera(FILE *f, void ** code, funcp * entry){
   while( fscanf(f, " %[^\n]", bufferSB) == 1 && readLines<LINE_MAX){
     readLines++;
     
-    debug_printf1("%3d: ", readLines);
-    debug_printf1("%s\n", bufferSB);
-
-    firstLineByte = nextByte;
     parseLine(bufferSB, *code, &nextByte, functions, &nextFunction);
-    debug_showLineCode(*code, firstLineByte, nextByte);
   }
 
-  debug_dump_code(code, nextByte);
   *entry = (funcp) ((*code) + functions[nextFunction-1]);
 
-  for(i=0; i<nextFunction; i++){
-    debug_printf1("Function %d ",   i);
-    debug_printf1("at index %d\n", functions[i]);
-  }
-  debug_printf1("Total bytes: %d\n", nextByte);
 }
 
 void libera(void *code){
@@ -172,8 +130,6 @@ static void parseLine(char *bufferSB, void *code, int *nextByte, int *functions,
       exit(EXIT_FAILURE);
     }
 
-    debug_printf0("   > function\n");
-    
     addFunc(code, nextByte, functions, nextFunction);
     return;
   }
@@ -185,8 +141,6 @@ static void parseLine(char *bufferSB, void *code, int *nextByte, int *functions,
       exit(EXIT_FAILURE);
     }
     
-    debug_printf0("   > end\n");
-
     addEnd(code, nextByte);
     return;
   }
@@ -201,18 +155,10 @@ static void parseLine(char *bufferSB, void *code, int *nextByte, int *functions,
       exit(EXIT_FAILURE);
     }
 
-    debug_printf0("   > ");
-    debug_varc_print(var1);
-    debug_printf0(" = ");
-
     if(bufferSB[5] == 'c'){
       //var = call num varc
       n = (funcid_t)atoi(bufferSB + 10);
       var2 = varc_parse(bufferSB + 12, &offset);
-
-      debug_printf1("call %d ", (int)n);
-      debug_varc_print(var2);
-      debug_printf0("\n");
 
       addCall(code, nextByte, var1, n, var2, functions);
       return;
@@ -222,11 +168,6 @@ static void parseLine(char *bufferSB, void *code, int *nextByte, int *functions,
       var2 = varc_parse(bufferSB + 5, &offset);
       op = bufferSB[5 + offset + 1];
       var3 = varc_parse(bufferSB + 5 + offset + 3, &offset);
-
-      debug_varc_print(var2);
-      debug_printf1(" %c ", op);
-      debug_varc_print(var3);
-      debug_printf0(" \n");
 
       if(op != '+' && op != '-' && op != '*'){
         fprintf(stderr, "Comando invalido: %s\n", bufferSB);
@@ -240,15 +181,9 @@ static void parseLine(char *bufferSB, void *code, int *nextByte, int *functions,
 
   if (bufferSB[0] == 'r'){
     //ret? varc varc
-    debug_printf0("   > ret? ");
 
     var1 = varc_parse(bufferSB + 5, &offset);
     var2 = varc_parse(bufferSB + 5 + offset + 1, &offset);
-
-    debug_varc_print(var1);
-    debug_printf0(" ");
-    debug_varc_print(var2);
-    debug_printf0("\n");
 
     addRet(code, nextByte, var1, var2);
     return;
