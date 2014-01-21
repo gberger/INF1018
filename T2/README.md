@@ -23,27 +23,27 @@ Todas as funções **SB** são delimitadas por uma marca de início
 (`function`) e uma marca de fim (`end`).
 
 Uma _atribuição_ tem a forma
-**```
+```
 var '=' expr
-```**
-onde **`var`** é uma variável local ou um parâmetro
-e **`expr`** é uma operação aritmética ou uma chamada de 
+```
+onde `var` é uma variável local ou um parâmetro
+e `expr` é uma operação aritmética ou uma chamada de 
 função.
 
 Uma _operação aritmética_ tem a forma
-**```
+```
 varc op varc
-```**
-onde **`varc`** é uma variável local, um parâmetro 
-ou uma constante inteira e **`op`** é um dos operadores:
+```
+onde `varc` é uma variável local, um parâmetro 
+ou uma constante inteira e `op` é um dos operadores:
 +, - ou *.
 
 Uma _chamada de função_ tem a forma
-**```
+```
 'call' num varc
-```**
-onde **`num`** é um número que identifica a função **SB**
-que será chamada, com parâmetro **`varc`**.
+```
+onde `num` é um número que identifica a função **SB**
+que será chamada, com parâmetro `varc`.
 A primeira função no arquivo de entrada será a de número **0**, a
 segunda a de número **1** e assim por diante. 
 Uma função só pode chamar a si mesma ou funções que apareçam antes dela
@@ -52,24 +52,24 @@ no arquivo de entrada.
 programa principal.**
 
 Um _retorno condicional _ tem a forma
-**```
+```
 'ret?' varc varc
-```**
+```
 Seu significado é que, se o primeiro operando tiver valor **igual a zero**,
 a função corrente deve retornar e o valor de retorno é o segundo operando.
 
-Em **SB** as variáveis locais são da forma **`vi`**, 
+Em **SB** as variáveis locais são da forma `vi`, 
 sendo o índice **_i_** utilizado para identificar a variável
 (ex. `v0, v1`, etc...).
 Em **SB** cada função usa no máximo 10 variáveis locais.
 
 Constantes em **SB** são escritas na forma
-**`$i`**, onde `i` é um valor inteiro
+`$i`, onde `i` é um valor inteiro
 (com sinal opcional).
-Por exemplo, **`$10`** representa o valor **10**
-e **`$-10`** representa o valor **-10**.
+Por exemplo, `$10` representa o valor **10**
+e `$-10` representa o valor **-10**.
 
-Parâmetros são da forma **`pi`**,
+Parâmetros são da forma `pi`,
 sendo p0 o primeiro parâmetro, p1 o segundo, e assim sucessivamente.
 Contudo, é importante notar que **apenas a última função definida
 no arquivo** (que é chamada externamente) poderá receber mais que
@@ -155,7 +155,7 @@ end
 
 ###  O que fazer 
 
-Desenvolva, em C, uma função chamada **`gera`** que leia um arquivo de entrada contendo o código fonte de **uma ou mais** funções **SB**, gere o código de máquina IA32 correspondente e retorne um ponteiro para a região de memória que contém o código gerado e um ponteiro para o início do código da última função definida no arquivo de entrada.
+Desenvolva, em C, uma função chamada `gera` que leia um arquivo de entrada contendo o código fonte de **uma ou mais** funções **SB**, gere o código de máquina IA32 correspondente e retorne um ponteiro para a região de memória que contém o código gerado e um ponteiro para o início do código da última função definida no arquivo de entrada.
 
 O código gerado deverá seguir as convenções de C/Linux para a passagem de parâmetros, retorno de valores e salvamento de registradores.
 
@@ -167,20 +167,20 @@ void gera(FILE *f, void **code, funcp *entry);
 
 - O parâmetro `f` é o descritor de um arquivo texto já aberto para leitura, de onde deve ser lido o código fonte **SB**.
 
-- O parâmetro **`code`** é o endereço de uma variável onde deve ser armazenado o ponteiro para a área que contém o código gerado.
+- O parâmetro `code` é o endereço de uma variável onde deve ser armazenado o ponteiro para a área que contém o código gerado.
 
-- O parâmetro **`entry`** é o endereço de uma variável onde deve ser armazenado o ponteiro (endereço) do código da função a ser chamada.
+- O parâmetro `entry` é o endereço de uma variável onde deve ser armazenado o ponteiro (endereço) do código da função a ser chamada.
 
 O arquivo de entrada terá no máximo 100 linhas, com um comando **SB** por linha.
 
-Desenvolva também uma função que libere a área alocada por  **`gera**`, com o protótipo:
+Desenvolva também uma função que libere a área alocada por  `gera`, com o protótipo:
 
 ```
 void libera(void *p);
 ```
 
 Você deverá incluir no arquivo que contém as implementações de `gera` e `libera` o arquivo de
-cabeçalho **`gera.h`**.
+cabeçalho `gera.h`.
 
 * * *
 
