@@ -1,0 +1,7 @@
+function
+ret? $0 $1
+end
+function
+v0 = call 0 $0
+ret? $0 v0
+end

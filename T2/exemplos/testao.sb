@@ -43,7 +43,6 @@ ret? $0 $0
 ret? $0 $0
 ret? $0 $0
 ret? $0 $0
-ret? $0 $0
 end
 function
 v0 = p0 + $1
