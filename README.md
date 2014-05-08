@@ -1,6 +1,6 @@
 ## INF1018 - Basic Software/Computer Systems
 
-Projects for the INF1018 course at PUC-Rio.
+Projects for the Basic Software/Computer course at PUC-Rio.
 
 
 ## Project 1 (T1)
